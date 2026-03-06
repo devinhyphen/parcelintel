@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ParcelIntel — Site Selection Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700&family=Barlow:wght@300;400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  :root {
+    --bg:#0d0f0f;--surface:#141818;--surface2:#1c2020;--border:#2a3030;
+    --accent:#c8f04a;--accent2:#4af0c8;--warn:#f0a04a;--danger:#f04a4a;
+    --text:#e8ede8;--text-muted:#6b7a6b;--text-dim:#2a3a2a;
+    --mono:'Share Tech Mono',monospace;--sans:'Barlow Condensed',sans-serif;--body:'Barlow',sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:var(--body);height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+  header{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
+  .logo{font-family:var(--sans);font-weight:700;font-size:18px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);}
+  .logo span{color:var(--text-muted);font-weight:300;}
+  .header-meta{font-family:var(--mono);font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em;}
+  .search-section{padding:20px 28px 0;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
+  .search-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.15em;color:var(--text-muted);margin-bottom:8px;}
+  .search-row{display:flex;gap:10px;margin-bottom:14px;}
+  #address-input{flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:14px;padding:10px 16px;outline:none;letter-spacing:.03em;transition:border-color .2s;}
+  #address-input:focus{border-color:var(--accent);}
+  #address-input::placeholder{color:#2a3a2a;}
+  .btn-analyze{background:var(--accent);color:#0d0f0f;border:none;padding:10px 24px;font-family:var(--sans);font-weight:700;font-size:14px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .15s;white-space:nowrap;}
+  .btn-analyze:hover{background:#d8ff5a;}
+  .btn-analyze:disabled{background:var(--text-dim);color:var(--text-muted);cursor:not-allowed;}
+  .layer-bar{display:flex;gap:6px;flex-wrap:wrap;padding-bottom:14px;}
+  .layer-btn{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;padding:5px 12px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;transition:all .15s;}
+  .layer-btn:hover{border-color:var(--accent2);color:var(--accent2);}
+  .layer-btn.active{background:var(--accent2);border-color:var(--accent2);color:#0d0f0f;}
+  .main{display:grid;grid-template-columns:1fr 380px;flex:1;overflow:hidden;}
+  .map-wrapper{position:relative;height:100%;}
+  #map{height:100%;width:100%;background:#0a0e0e;}
+  .panel{background:var(--surface);overflow-y:auto;display:flex;flex-direction:column;}
+  .panel::-webkit-scrollbar{width:4px;}
+  .panel::-webkit-scrollbar-track{background:var(--bg);}
+  .panel::-webkit-scrollbar-thumb{background:var(--border);}
+  .empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;text-align:center;gap:16px;}
+  .empty-icon{font-size:48px;opacity:.15;}
+  .empty-state h3{font-family:var(--sans);font-weight:600;font-size:16px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);}
+  .empty-state p{font-size:13px;color:var(--text-muted);line-height:1.6;max-width:260px;opacity:.6;}
+  .parcel-header{padding:18px 18px 14px;border-bottom:1px solid var(--border);background:var(--surface2);}
+  .parcel-address{font-family:var(--sans);font-weight:700;font-size:17px;letter-spacing:.04em;line-height:1.3;margin-bottom:4px;}
+  .parcel-coords{font-family:var(--mono);font-size:10px;color:var(--text-muted);letter-spacing:.1em;}
+  .score-bar{display:flex;gap:8px;margin-top:12px;}
+  .score-chip{flex:1;background:var(--bg);border:1px solid var(--border);padding:8px;text-align:center;}
+  .score-val{font-family:var(--mono);font-size:20px;color:var(--accent);display:block;line-height:1;}
+  .score-lbl{font-family:var(--sans);font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-top:3px;display:block;}
+  @keyframes fadeSlide{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  .data-section{padding:12px 16px;border-bottom:1px solid var(--border);animation:fadeSlide .3s ease forwards;opacity:0;}
+  .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .section-title{font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted);display:flex;align-items:center;gap:7px;}
+  .dot{width:5px;height:5px;border-radius:50%;background:var(--accent2);flex-shrink:0;}
+  .section-status{font-family:var(--mono);font-size:9px;padding:2px 7px;text-transform:uppercase;letter-spacing:.1em;}
+  .status-ok{background:rgba(74,240,200,.08);color:var(--accent2);border:1px solid rgba(74,240,200,.2);}
+  .status-warn{background:rgba(240,160,74,.08);color:var(--warn);border:1px solid rgba(240,160,74,.2);}
+  .status-flag{background:rgba(240,74,74,.08);color:var(--danger);border:1px solid rgba(240,74,74,.2);}
+  .data-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--text-dim);}
+  .data-row:last-child{border-bottom:none;}
+  .data-key{font-size:12px;color:var(--text-muted);}
+  .data-val{font-family:var(--mono);font-size:11px;color:var(--text);text-align:right;max-width:58%;}
+  .data-val.accent{color:var(--accent);}
+  .data-val.warn{color:var(--warn);}
+  .data-val.danger{color:var(--danger);}
+  .ai-summary{margin:14px 16px 4px;background:rgba(200,240,74,.04);border:1px solid rgba(200,240,74,.12);border-left:3px solid var(--accent);padding:12px 14px;animation:fadeSlide .3s ease .45s forwards;opacity:0;}
+  .ai-label{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:.15em;color:var(--accent);margin-bottom:7px;}
+  .ai-text{font-size:12px;line-height:1.7;color:#9ab09a;}
+  .loading-overlay{display:none;position:absolute;inset:0;background:rgba(13,15,15,.88);z-index:500;align-items:center;justify-content:center;flex-direction:column;gap:16px;}
+  .loading-overlay.active{display:flex;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loader{width:36px;height:36px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
+  .loading-text{font-family:var(--mono);font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em;}
+  .error-msg{margin:14px 16px;background:rgba(240,74,74,.05);border:1px solid rgba(240,74,74,.2);border-left:3px solid var(--danger);padding:10px 12px;font-size:12px;color:var(--danger);font-family:var(--mono);}
+  .leaflet-container{background:#0d1111;}
+  .leaflet-tile{filter:brightness(.55) saturate(.45) hue-rotate(175deg) contrast(1.1)!important;}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Parcel<span>Intel</span></div>
+  <div class="header-meta">Site Selection Intelligence Layer</div>
+</header>
+<div class="search-section">
+  <div class="search-label">Enter Address or Parcel</div>
+  <div class="search-row">
+    <input type="text" id="address-input" placeholder="e.g. 4200 S Holt Rd, Indianapolis, IN 46221" autocomplete="off"/>
+    <button class="btn-analyze" id="analyze-btn" onclick="analyzeAddress()">Analyze</button>
+  </div>
+  <div class="layer-bar">
+    <button class="layer-btn active" data-layer="zoning" onclick="toggleLayer(this)">⬡ Zoning</button>
+    <button class="layer-btn active" data-layer="utilities" onclick="toggleLayer(this)">⚡ Utilities</button>
+    <button class="layer-btn active" data-layer="transport" onclick="toggleLayer(this)">🛣 Transport</button>
+    <button class="layer-btn active" data-layer="labor" onclick="toggleLayer(this)">👷 Labor Market</button>
+    <button class="layer-btn active" data-layer="incentives" onclick="toggleLayer(this)">💰 Incentives</button>
+    <button class="layer-btn active" data-layer="env" onclick="toggleLayer(this)">🌿 Environmental</button>
+    <button class="layer-btn active" data-layer="risk" onclick="toggleLayer(this)">⚠ Risk Flags</button>
+  </div>
+</div>
+<div class="main">
+  <div class="map-wrapper">
+    <div id="map"></div>
+    <div class="loading-overlay" id="loading">
+      <div class="loader"></div>
+      <div class="loading-text" id="loading-text">Processing...</div>
+    </div>
+  </div>
+  <div class="panel" id="panel">
+    <div class="empty-state" id="empty-state">
+      <div class="empty-icon">📍</div>
+      <h3>No Parcel Loaded</h3>
+      <p>Enter an address above to pull site intelligence layers for evaluation.</p>
+    </div>
+    <div id="results" style="display:none"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let map, marker;
+let activeLayers = new Set(['zoning','utilities','transport','labor','incentives','env','risk']);
+
+document.addEventListener('DOMContentLoaded', function() {
+  map = L.map('map', {zoomControl:true}).setView([39.77,-86.15],10);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(map);
+  document.getElementById('address-input').addEventListener('keydown', e => { if(e.key==='Enter') analyzeAddress(); });
+});
+
+function toggleLayer(btn) {
+  const l = btn.dataset.layer;
+  activeLayers.has(l) ? activeLayers.delete(l) : activeLayers.add(l);
+  btn.classList.toggle('active');
+  if (window._lastData) renderPanel(window._lastData);
+}
+
+function showLoading(t) { document.getElementById('loading').classList.add('active'); document.getElementById('loading-text').textContent = t||'Processing...'; }
+function hideLoading() { document.getElementById('loading').classList.remove('active'); }
+
+async function analyzeAddress() {
+  const address = document.getElementById('address-input').value.trim();
+  if (!address) return;
+  const btn = document.getElementById('analyze-btn');
+  btn.disabled = true;
+  showLoading('Geocoding address...');
+  try {
+    const geo = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,{headers:{'Accept-Language':'en','User-Agent':'ParcelIntel/1.0'}});
+    const gd = await geo.json();
+    if (!gd.length) { hideLoading(); btn.disabled=false; showError('Address not found. Try a more specific address.'); return; }
+    const lat = parseFloat(gd[0].lat), lng = parseFloat(gd[0].lon);
+    map.setView([lat,lng],16);
+    if (marker) map.removeLayer(marker);
+    const icon = L.divIcon({className:'',html:`<div style="width:14px;height:14px;background:#c8f04a;border:2px solid #0d0f0f;box-shadow:0 0 16px rgba(200,240,74,.5);border-radius:50%;"></div>`,iconSize:[14,14],iconAnchor:[7,7]});
+    marker = L.marker([lat,lng],{icon}).addTo(map);
+    showLoading('Fetching site data layers...');
+    const [osm,census,elev] = await Promise.all([fetchOSM(lat,lng),fetchCensus(lat,lng),fetchElev(lat,lng)]);
+    showLoading('Generating AI site analysis...');
+    const aiSummary = await fetchAI(address,osm,census,elev);
+    const data = {address,lat,lng,osm,census,elev,aiSummary};
+    window._lastData = data;
+    hideLoading(); btn.disabled=false;
+    renderPanel(data);
+  } catch(e) { hideLoading(); btn.disabled=false; showError('Error: '+(e.message||'Unknown')); }
+}
+
+async function fetchOSM(lat,lng) {
+  try { const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,{headers:{'User-Agent':'ParcelIntel/1.0'}}); return r.json(); } catch{return {};}
+}
+async function fetchCensus(lat,lng) {
+  try {
+    const r=await fetch(`https://geocoding.geo.census.gov/geocoder/geographies/coordinates?x=${lng}&y=${lat}&benchmark=Public_AR_Current&vintage=Current_Current&layers=Census%20Tracts&format=json`);
+    const d=await r.json(); const t=d?.result?.geographies?.["Census Tracts"]?.[0];
+    return {geoid:t?.GEOID||''};
+  } catch{return {};}
+}
+async function fetchElev(lat,lng) {
+  try { const r=await fetch(`https://api.open-elevation.com/api/v1/lookup?locations=${lat},${lng}`); const d=await r.json(); return d?.results?.[0]?.elevation??null; } catch{return null;}
+}
+async function fetchAI(address,osm,census,elev) {
+  const a = osm?.address||{};
+  const elevFt = elev!=null ? Math.round(elev*3.28084) : null;
+  const prompt = `You are a senior site selection consultant. Evaluate this location for industrial, logistics, or commercial development.
+Address: ${address}
+State: ${a.state||a['ISO3166-2-lvl4']||'Unknown'}
+County: ${a.county||'Unknown'}
+City: ${a.city||a.town||a.village||'Unknown'}
+ZIP: ${a.postcode||'Unknown'}
+Census Tract: ${census?.geoid||'Unknown'}
+Elevation: ${elevFt!=null?elevFt+' ft ASL':'Unknown'}
+Write a focused 3-4 sentence site selection narrative covering: location context and regional positioning, likely infrastructure characteristics, key opportunity, and one primary risk. Professional tone. No hedging.`;
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'content-type':'application/json','anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})
+    });
+    if(!r.ok){const t=await r.text();return `[HTTP ${r.status}] ${t.slice(0,150)}`;}
+    const d=await r.json(); return d?.content?.[0]?.text||'Analysis unavailable.';
+  } catch(e){ return `[Error] ${e.message} — AI analysis requires the tool to be hosted with a backend proxy.`; }
+}
+
+function renderPanel(data) {
+  document.getElementById('empty-state').style.display='none';
+  const results=document.getElementById('results');
+  results.style.display='block';
+  const a=data.osm?.address||{};
+  const state=a.state_code||(a['ISO3166-2-lvl4']||'').split('-')[1]||'';
+  const county=a.county||'', city=a.city||a.town||a.village||a.hamlet||'';
+  const zip=a.postcode||'', road=a.road||'';
+  const elevFt=data.elev!=null?Math.round(data.elev*3.28084):null;
+  const isIN=state.toUpperCase()==='IN';
+  const metros=['Indianapolis','Chicago','Columbus','Cincinnati','Louisville','Detroit','Cleveland','St. Louis','Nashville','Atlanta','Dallas','Houston','Phoenix','Denver','Seattle'];
+  const inMetro=metros.some(m=>(data.osm?.display_name||'').includes(m));
+  const displayAddr=[road,city,state].filter(Boolean).join(', ');
+
+  let html=`<div class="parcel-header">
+    <div class="parcel-address">${displayAddr||data.address.split(',').slice(0,2).join(',')}</div>
+    <div class="parcel-coords">${data.lat.toFixed(5)}°N &nbsp;${Math.abs(data.lng).toFixed(5)}°W</div>
+    <div class="score-bar">
+      <div class="score-chip"><span class="score-val">${inMetro?'88':'72'}</span><span class="score-lbl">Site Score</span></div>
+      <div class="score-chip"><span class="score-val">${(county||'—').replace(' County','').substring(0,7)}</span><span class="score-lbl">County</span></div>
+      <div class="score-chip"><span class="score-val">${state||'—'}</span><span class="score-lbl">State</span></div>
+    </div></div>`;
+
+  if(data.aiSummary) html+=`<div class="ai-summary"><div class="ai-label">⬡ AI Site Analysis</div><div class="ai-text">${data.aiSummary}</div></div>`;
+
+  if(activeLayers.has('zoning')) html+=sec('Zoning & Land Use','ok',[['Address',road||'—'],['City / Municipality',city||'—'],['ZIP Code',zip||'—'],['County',county||'—'],['State',a.state||'—'],['Census Tract ID',data.census?.geoid||'Not resolved'],['OSM Land Class',a.suburb||a.neighbourhood||a.quarter||'Verify w/ GIS']],0.05);
+  if(activeLayers.has('utilities')) html+=sec('Utilities & Infrastructure',elevFt!==null&&elevFt<20?'warn':'ok',[['Elevation',elevFt!==null?`${elevFt} ft ASL`:'API unavailable',elevFt!==null&&elevFt<20?'warn':'accent'],['Natural Gas','Verify w/ local utility',null],['Electric (MW avail.)','Verify w/ utility provider',null],['Water / Sewer','Verify w/ municipality',null],['Fiber / Broadband','Check FCC BDC Map',null],['Telecom Infrastructure','Verify w/ providers',null]],0.1);
+  if(activeLayers.has('transport')) html+=sec('Transportation & Logistics','ok',[['Nearest Interstate','Pull from FHWA / state DOT',null],['Class I Rail','Check AAR / STB data',null],['Nearest Port','N/A or verify inland waterway',null],['Airport (cargo)','Check FAA airport data',null],['State Truck Route',isIN?'Check INDOT':'Check state DOT',null],['Street Classification',road||'Verify w/ GIS',null]],0.15);
+  if(activeLayers.has('labor')) html+=sec('Labor Market',inMetro?'ok':'warn',[['Metro Designation',inMetro?'Major Metro':'Non-Metro — Verify',inMetro?'accent':'warn'],['MSA Population','Pull BLS / Census ACS',null],['Unemployment Rate','Pull BLS LAUS (county)',null],['Workforce (5-yr)','Pull Lightcast / EMSI',null],['Median Wage Index','Pull BLS OEWS',null],['Union Presence','Verify w/ NLRB data',null]],0.2);
+  if(activeLayers.has('incentives')) html+=sec('Incentives & Programs','ok',[['State Lead Agency',isIN?'IEDC — Indiana':`State EDA / ${state||'verify'}`,isIN?'accent':null],['Key State Programs',isIN?'REDI, EDGE Tax Credit':'Verify state programs',isIN?'accent':null],['Enterprise Zone','Verify w/ state GIS portal',null],['Opportunity Zone','Check IRS/Treasury OZ map',null],['TIF / Abatement','Verify w/ municipality',null],['Federal Programs','EDA, USDA RD, SBA, DOE',null]],0.25);
+  if(activeLayers.has('env')) html+=sec('Environmental & Constraints','ok',[['FEMA Flood Zone','Check FIRM Map Service Center',null],['NWI Wetlands','Check USFWS NWI Mapper',null],['Brownfield / Superfund','Check EPA ACRES / EnviroFacts',null],['CERCLIS / NPL','Check EPA CERCLIS database',null],['Soil Type / Load','Check USDA Web Soil Survey',null],['Air Quality Attainment','Check EPA AQS (county)',null]],0.3);
+  if(activeLayers.has('risk')){
+    const risks=[];
+    if(elevFt!==null&&elevFt<20) risks.push(['Low Elevation — Flood Risk',`${elevFt}ft — verify FEMA FIRM`,'danger']);
+    if(!inMetro) risks.push(['Labor Depth Risk','Non-metro — verify workforce draw','warn']);
+    risks.push(['Title / Encumbrances','Pull county recorder / title search',null]);
+    risks.push(['Phase I ESA','Required prior to LOI / closing','warn']);
+    risks.push(['Geotechnical / Soils','Geotech study recommended',null]);
+    risks.push(['Utility Capacity Confirm','Confirm before LOI submittal','warn']);
+    html+=sec('Risk Flags & Action Items',risks.some(r=>r[2]==='danger')?'flag':'warn',risks,0.35);
+  }
+  results.innerHTML=html;
+}
+
+function sec(title,status,rows,delay){
+  const sm={ok:['status-ok','CLEAR'],warn:['status-warn','REVIEW'],flag:['status-flag','FLAG']};
+  const[cls,lbl]=sm[status]||sm.ok;
+  return `<div class="data-section" style="animation-delay:${delay}s">
+    <div class="section-header"><div class="section-title"><span class="dot"></span>${title}</div><span class="section-status ${cls}">${lbl}</span></div>
+    ${rows.map(([k,v,c])=>`<div class="data-row"><span class="data-key">${k}</span><span class="data-val ${c||''}">${v}</span></div>`).join('')}
+  </div>`;
+}
+
+function showError(msg){
+  document.getElementById('empty-state').style.display='none';
+  const r=document.getElementById('results');
+  r.style.display='block';
+  r.innerHTML=`<div class="error-msg">${msg}</div>`;
+}
+</script>
+</body>
+</html>
