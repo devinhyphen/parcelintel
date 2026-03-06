@@ -147,12 +147,12 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('address-input').addEventListener('keydown', e => { if(e.key==='Enter') analyzeAddress(); });
 
   // Pre-create WMS layers (off by default)
-  wmsFlood = L.tileLayer.wms('https://hazards.fema.gov/gis/nfhl/services/public/NFHLWMS/MapServer/WMSServer', {
-    layers: 'NFHL',
+  wmsFlood = L.tileLayer.wms('https://hazards.fema.gov/arcgis/services/public/NFHLWMS/MapServer/WMSServer', {
+    layers: '28',
     format: 'image/png',
     transparent: true,
     version: '1.3.0',
-    opacity: 0.6,
+    opacity: 0.65,
     attribution: 'FEMA NFHL'
   });
 
@@ -165,12 +165,13 @@ document.addEventListener('DOMContentLoaded', function() {
     attribution: 'USFWS NWI'
   });
 
+  // Opportunity Zones via Census TIGERweb WMS - layer 104 = Opportunity Zones
   wmsOZ = L.tileLayer.wms('https://tigerweb.geo.census.gov/arcgis/services/TIGERweb/tigerWMS_Current/MapServer/WMSServer', {
-    layers: 'Opportunity Zones',
+    layers: '104',
     format: 'image/png',
     transparent: true,
     version: '1.3.0',
-    opacity: 0.5,
+    opacity: 0.55,
     attribution: 'Census TIGERweb'
   });
 });
@@ -235,7 +236,7 @@ function updateMapOverlays() {
     mkLabel(currentLat + 0.362, currentLng, '30-MIN LABOR SHED', 'rgba(74,240,200,.8)');
     mkLabel(currentLat + 0.724, currentLng, '60-MIN LABOR SHED', 'rgba(74,240,200,.55)');
     mkLabel(currentLat + 1.085, currentLng, '90-MIN LABOR SHED', 'rgba(74,240,200,.35)');
-    laborRings.push(...map._layers ? [] : []);
+    // labels added above
 
     document.getElementById('leg-labor30').style.display = 'flex';
     document.getElementById('leg-labor60').style.display = 'flex';
@@ -248,8 +249,8 @@ function updateMapOverlays() {
   );
   document.getElementById('map-legend').style.display = anyLegend ? 'block' : 'none';
 
-  // Ensure pin stays on top
-  if (marker) marker.bringToFront();
+  // Ensure pin stays on top by re-adding it last
+  if (marker) { marker.remove(); marker.addTo(map); }
 }
 
 function toggleLayer(btn) {
@@ -284,7 +285,7 @@ async function analyzeAddress() {
     const data = {address,lat:currentLat,lng:currentLng,osm,census,elev,aiSummary:null};
     window._lastData = data;
     hideLoading(); btn.disabled=false;
-    updateMapOverlays();
+    try { updateMapOverlays(); } catch(e) { console.warn('Map overlay error:', e); }
     renderPanel(data);
   } catch(e) { hideLoading(); btn.disabled=false; showError('Error: '+(e.message||'Unknown')); }
 }
